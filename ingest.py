@@ -34,7 +34,7 @@ BROWSER_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
  
-SMOKE_TEST_QUESTION = "What are the requirements for the MS in Computer Science?"
+SMOKE_TEST_QUESTION = "Who do I contact for graduate advising?"
  
  
 def load_local_files():
@@ -46,6 +46,31 @@ def load_local_files():
         DATA_DIR, glob="**/*.pdf", loader_cls=PyPDFLoader,
     ).load()
     return txt_docs + pdf_docs
+ 
+ 
+from bs4 import BeautifulSoup, SoupStrainer
+ 
+ 
+def _clean_text(text):
+    """Collapse whitespace and drop leftover menu/skip lines."""
+    import re as _re
+    skip = ("Skip banner", "Skip to main", "Nav Screen", "We Define the Future",
+            "Search CSUSB", "Close Navigation", "A new version of this site",
+            "myCoyote", "Reload")
+    out = []
+    for ln in text.split("\n"):
+        s = ln.strip()
+        if not s:
+            continue
+        if any(m in s for m in skip):
+            continue
+        # drop pure markdown link bullets like "- [Apply](...)" / "* [x](...)"
+        if _re.match(r"^[-*]\s*\[.*\]\(.*\)$", s):
+            continue
+        out.append(s)
+    text = "\n".join(out)
+    text = _re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
  
  
 def load_web_pages():
@@ -62,12 +87,28 @@ def load_web_pages():
         loaded = None
         for attempt in range(1, 4):  # up to 3 tries per URL
             try:
+                # Parse ONLY the main content region, ignoring nav/header/footer.
+                # CSUSB (Drupal) wraps real content in <main> / id="main-content".
+                strainer = SoupStrainer(
+                    ["main", "article"]
+                )
                 loader = WebBaseLoader(
                     url,
                     header_template=BROWSER_HEADERS,
                     requests_kwargs={"timeout": 30},
+                    bs_kwargs={"parse_only": strainer},
                 )
                 loaded = loader.load()
+                # If <main> wasn't found (empty), fall back to a full parse
+                if not loaded or len(loaded[0].page_content.strip()) < 200:
+                    loader = WebBaseLoader(
+                        url,
+                        header_template=BROWSER_HEADERS,
+                        requests_kwargs={"timeout": 30},
+                    )
+                    loaded = loader.load()
+                for d in loaded:
+                    d.page_content = _clean_text(d.page_content)
                 break
             except Exception as e:
                 if attempt < 3:
@@ -157,3 +198,4 @@ def main():
  
 if __name__ == "__main__":
     main()
+ 

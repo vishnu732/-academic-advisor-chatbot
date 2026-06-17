@@ -13,8 +13,8 @@ from langchain_google_genai import (
  
 VECTORSTORE_DIR = "vectorstore"
 EMBEDDING_MODEL = "models/gemini-embedding-001"
-CHAT_MODEL = "gemini-2.5-flash-lite"   # current free-tier chat model   # fast, free-tier friendly chat model
-RETRIEVE_K = 4                    # how many chunks to pull per question
+CHAT_MODEL = "gemini-2.5-flash-lite"   # fast, free-tier friendly chat model
+RETRIEVE_K = 6                    # how many chunks to pull per question
  
 SYSTEM_PROMPT = """You are a helpful Academic Advisor assistant for the \
 Computer Science and Engineering (CSE) graduate programs at CSUSB. Answer the \
